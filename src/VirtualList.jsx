@@ -318,7 +318,9 @@ class VirtualList extends React.Component {
     let winStart = Math.min(maxWinStart, index);
     let scrollTop = winStart * avgRowHeight;
 
-    this.setState({winStart, scrollTop}, callback);
+    this.setState({winStart, scrollTop}, () => {
+      this.content.childNodes[index - winStart].scrollIntoView();
+    });
   }
 
   scrollToIndex(index, callback) {
@@ -367,17 +369,6 @@ class VirtualList extends React.Component {
     }
 
     return this;
-  }
-
-  handleScroll() {
-    const node = this.node;
-    const { scrollTop } = this.state;
-
-    if (node.scrollTop !== scrollTop) {
-      this.scroll(node.scrollTop - scrollTop);
-    }
-
-    this._handleScrollRAF = requestAnimationFrame(this.handleScroll);
   }
 
   render() {

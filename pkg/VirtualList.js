@@ -445,6 +445,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: '_scrollToIndex',
 	    value: function _scrollToIndex(index, callback) {
+	      var _this4 = this;
+
 	      var items = this.props.items;
 	      var _state9 = this.state,
 	          winSize = _state9.winSize,
@@ -454,12 +456,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var winStart = Math.min(maxWinStart, index);
 	      var scrollTop = winStart * avgRowHeight;
 
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, callback);
+	      this.setState({ winStart: winStart, scrollTop: scrollTop }, function () {
+	        _this4.content.childNodes[index - winStart].scrollIntoView();
+	      });
 	    }
 	  }, {
 	    key: 'scrollToIndex',
 	    value: function scrollToIndex(index, callback) {
-	      var _this4 = this;
+	      var _this5 = this;
 
 	      if (this.state.avgRowHeight === 1) {
 	        // The average row height is still the initial value, which means that we
@@ -467,7 +471,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // scroll to the right position. So we need to delay the scroll logic
 	        // until after the list has had a chance to sample the row heights.
 	        this.setState({}, function () {
-	          _this4._scrollToIndex(index, callback);
+	          _this5._scrollToIndex(index, callback);
 	        });
 	      } else {
 	        this._scrollToIndex(index, callback);
@@ -516,22 +520,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this;
 	    }
 	  }, {
-	    key: 'handleScroll',
-	    value: function handleScroll() {
-	      var node = this.node;
-	      var scrollTop = this.state.scrollTop;
-
-
-	      if (node.scrollTop !== scrollTop) {
-	        this.scroll(node.scrollTop - scrollTop);
-	      }
-
-	      this._handleScrollRAF = requestAnimationFrame(this.handleScroll);
-	    }
-	  }, {
 	    key: 'render',
 	    value: function render() {
-	      var _this5 = this;
+	      var _this6 = this;
 
 	      var _props2 = this.props,
 	          items = _props2.items,
@@ -578,7 +569,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        'div',
 	        {
 	          ref: function ref(node) {
-	            _this5.node = node;
+	            _this6.node = node;
 	          },
 	          className: 'VirtualList',
 	          tabIndex: '-1',
@@ -588,7 +579,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          'div',
 	          {
 	            ref: function ref(content) {
-	              _this5.content = content;
+	              _this6.content = content;
 	            },
 	            className: 'VirtualList-content',
 	            style: contentStyle },
