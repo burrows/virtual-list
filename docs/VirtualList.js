@@ -447,17 +447,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function _scrollToIndex(index, callback) {
 	      var _this4 = this;
 
-	      var items = this.props.items;
 	      var _state9 = this.state,
+	          winStart = _state9.winStart,
 	          winSize = _state9.winSize,
 	          avgRowHeight = _state9.avgRowHeight;
 
-	      var maxWinStart = Math.max(0, items.length - winSize);
-	      var winStart = Math.min(maxWinStart, index);
-	      var scrollTop = winStart * avgRowHeight;
 
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, function () {
-	        _this4.content.childNodes[index - winStart].scrollIntoView();
+	      if (index >= winStart && index < winStart + winSize) {
+	        this.content.childNodes[index - winStart].scrollIntoView();
+	        if (callback) callback();
+	        return;
+	      }
+
+	      var items = this.props.items;
+
+	      var maxWinStart = Math.max(0, items.length - winSize);
+	      var newWinStart = Math.min(maxWinStart, index);
+	      var scrollTop = newWinStart * avgRowHeight;
+
+	      this.setState({ winStart: newWinStart, scrollTop: scrollTop }, function () {
+	        _this4.content.childNodes[index - newWinStart].scrollIntoView();
+	        if (callback) callback();
 	      });
 	    }
 	  }, {
