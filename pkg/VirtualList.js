@@ -452,12 +452,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	          winSize = _state9.winSize,
 	          avgRowHeight = _state9.avgRowHeight;
 
-
-	      if (index >= winStart && index < winStart + winSize) {
-	        this.content.childNodes[index - winStart].scrollIntoView();
-	        if (callback) callback();
-	        return;
-	      }
+	      //if (index >= winStart && index < winStart + winSize) {
+	      //  this.content.childNodes[index - winStart].scrollIntoView();
+	      //  if (callback) callback();
+	      //  return;
+	      //}
 
 	      var items = this.props.items;
 

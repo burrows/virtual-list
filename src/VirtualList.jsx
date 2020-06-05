@@ -314,12 +314,6 @@ class VirtualList extends React.Component {
   _scrollToIndex(index, callback) {
     const {winStart, winSize, avgRowHeight} = this.state;
 
-    if (index >= winStart && index < winStart + winSize) {
-      this.content.childNodes[index - winStart].scrollIntoView();
-      if (callback) callback();
-      return;
-    }
-
     const {items} = this.props;
     const maxWinStart = Math.max(0, items.length - winSize);
     let newWinStart = Math.min(maxWinStart, index);
