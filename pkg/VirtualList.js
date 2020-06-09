@@ -152,7 +152,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      winSize: 10,
 	      viewportHeight: 1,
 	      avgRowHeight: 1,
-	      scrollTop: 0
+	      scrollTop: 0,
+	      pendingScrollAdjustment: false
 	    };
 
 	    _this2.animationLoop = _this2.animationLoop.bind(_this2);
@@ -190,20 +191,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function componentDidUpdate() {
 	      var node = this.node;
 	      var childNodes = this.content.childNodes;
-	      var _state = this.state,
-	          winSize = _state.winSize,
-	          scrollTop = _state.scrollTop;
+	      var winSize = this.state.winSize;
 
 
 	      this.notifyFirstVisibleItemIfNecessary();
 	      this.notifyLastVisibleItemIfNecessary();
 
-	      if (childNodes.length < winSize) {
+	      if (childNodes.length - 2 < winSize) {
 	        this.sampleRowHeights();
-	      }
-
-	      if (node.scrollTop !== scrollTop) {
-	        node.scrollTop = scrollTop;
 	      }
 	    }
 	  }, {
@@ -223,9 +218,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'animationLoop',
 	    value: function animationLoop() {
 	      var node = this.node;
-	      var _state2 = this.state,
-	          scrollTop = _state2.scrollTop,
-	          viewportHeight = _state2.viewportHeight;
+	      var _state = this.state,
+	          scrollTop = _state.scrollTop,
+	          viewportHeight = _state.viewportHeight;
 
 
 	      if (node.clientHeight !== viewportHeight) {
@@ -233,7 +228,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 
 	      if (node.scrollTop !== scrollTop) {
-	        this.scroll(node.scrollTop - scrollTop);
+	        if (this.state.pendingScrollAdjustment) {
+	          this.setState({ scrollTop: node.scrollTop, pendingScrollAdjustment: false });
+	        } else {
+	          this.scroll(node.scrollTop - scrollTop);
+	        }
 	      }
 
 	      this._raf = requestAnimationFrame(this.animationLoop);
@@ -263,10 +262,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	      if (childNodes.length) {
 	        var totalHeight = 0;
-	        for (var i = 0; i < childNodes.length; i++) {
+	        for (var i = 1; i < childNodes.length - 1; i++) {
 	          totalHeight += childNodes[i].offsetHeight;
 	        }
-	        var avgRowHeight = totalHeight / childNodes.length;
+	        var avgRowHeight = Math.round(totalHeight / childNodes.length - 2);
 	        var winSize = Math.ceil(node.clientHeight / avgRowHeight) + this.props.buffer;
 	        if (avgRowHeight !== this.state.avgRowHeight || winSize !== this.state.winSize) {
 	          this.setState({ avgRowHeight: avgRowHeight, winSize: winSize });
@@ -306,14 +305,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function findFirstVisibleItemIndex() {
 	      var childNodes = this.content.childNodes;
 	      var items = this.props.items;
-	      var _state3 = this.state,
-	          winStart = _state3.winStart,
-	          scrollTop = _state3.scrollTop;
+	      var scrollTop = this.node.scrollTop;
+	      var winStart = this.state.winStart;
 
 
-	      for (var i = 0; i < childNodes.length; i++) {
+	      for (var i = 1; i < childNodes.length - 1; i++) {
 	        if (childNodes[i].offsetTop + childNodes[i].offsetHeight >= scrollTop) {
-	          return winStart + i;
+	          return winStart + i - 1;
 	        }
 	      }
 
@@ -324,15 +322,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function findLastVisibleItemIndex() {
 	      var childNodes = this.content.childNodes;
 	      var items = this.props.items;
-	      var _state4 = this.state,
-	          winStart = _state4.winStart,
-	          scrollTop = _state4.scrollTop,
-	          viewportHeight = _state4.viewportHeight;
+	      var scrollTop = this.node.scrollTop;
+	      var _state2 = this.state,
+	          winStart = _state2.winStart,
+	          viewportHeight = _state2.viewportHeight;
 
 
-	      for (var i = childNodes.length - 1; i >= 0; i--) {
+	      for (var i = childNodes.length - 2; i >= 1; i--) {
 	        if (childNodes[i].offsetTop < scrollTop + viewportHeight) {
-	          return winStart + i;
+	          return winStart + i - 1;
 	        }
 	      }
 
@@ -342,81 +340,65 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'handleDownwardScroll',
 	    value: function handleDownwardScroll(delta, callback) {
 	      var childNodes = this.content.childNodes;
+	      var lastChild = childNodes[childNodes.length - 2];
 	      var items = this.props.items;
-	      var _state5 = this.state,
-	          winSize = _state5.winSize,
-	          avgRowHeight = _state5.avgRowHeight;
+	      var _state3 = this.state,
+	          winSize = _state3.winSize,
+	          winStart = _state3.winStart,
+	          avgRowHeight = _state3.avgRowHeight;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
-	      var _state6 = this.state,
-	          winStart = _state6.winStart,
-	          scrollTop = _state6.scrollTop;
+	      var scrollTop = this.node.scrollTop;
 
+	      var newWinStart = winStart;
 
-	      scrollTop += delta;
-
-	      var startScrollTop = scrollTop;
-
-	      for (var i = 0; i < childNodes.length; i++) {
-	        if (winStart < maxWinStart && childNodes[i].offsetTop + childNodes[i].offsetHeight < startScrollTop) {
-	          winStart++;
-	          scrollTop += avgRowHeight - childNodes[i].offsetHeight;
+	      for (var i = 1; i < childNodes.length - 1; i++) {
+	        if (newWinStart < maxWinStart && childNodes[i].offsetTop + childNodes[i].offsetHeight < scrollTop) {
+	          newWinStart++;
 	        } else {
 	          break;
 	        }
 	      }
 
-	      scrollTop = Math.round(scrollTop);
-
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, callback);
+	      this.setState({
+	        winStart: newWinStart,
+	        scrollTop: scrollTop,
+	        pendingScrollAdjustment: winStart !== newWinStart
+	      }, callback);
 	    }
 	  }, {
 	    key: 'handleUpwardScroll',
 	    value: function handleUpwardScroll(delta, callback) {
-	      var _this3 = this;
-
 	      var node = this.node;
 	      var childNodes = this.content.childNodes;
-	      var _state7 = this.state,
-	          winStart = _state7.winStart,
-	          scrollTop = _state7.scrollTop,
-	          avgRowHeight = _state7.avgRowHeight;
+	      var scrollTop = this.node.scrollTop;
+	      var _state4 = this.state,
+	          winStart = _state4.winStart,
+	          avgRowHeight = _state4.avgRowHeight;
 
-	      var n = 0;
+	      var newWinStart = winStart;
 
-	      scrollTop += delta;
-
-	      for (var i = childNodes.length - 1; i >= 0; i--) {
-	        if (winStart > 0 && childNodes[i].offsetTop - scrollTop > node.offsetHeight) {
-	          winStart--;
-	          n++;
+	      for (var i = childNodes.length - 2; i >= 1; i--) {
+	        if (newWinStart > 0 && childNodes[i].offsetTop - scrollTop > node.offsetHeight) {
+	          newWinStart--;
 	        } else {
 	          break;
 	        }
 	      }
 
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, function () {
-	        var childNodes = _this3.content.childNodes;
-	        var avgRowHeight = _this3.state.avgRowHeight;
-	        var scrollTop = _this3.state.scrollTop;
-
-
-	        for (var _i = 0; _i < n; _i++) {
-	          scrollTop -= avgRowHeight - childNodes[_i].offsetHeight;
-	        }
-
-	        scrollTop = Math.round(scrollTop);
-
-	        _this3.setState({ scrollTop: scrollTop }, callback);
-	      });
+	      this.setState({
+	        winStart: newWinStart,
+	        scrollTop: scrollTop,
+	        pendingScrollAdjustment: winStart !== newWinStart
+	      }, callback);
 	    }
 	  }, {
 	    key: 'handleLongScroll',
 	    value: function handleLongScroll(delta, callback) {
 	      var items = this.props.items;
-	      var _state8 = this.state,
-	          winSize = _state8.winSize,
-	          avgRowHeight = _state8.avgRowHeight;
+	      var _state5 = this.state,
+	          winSize = _state5.winSize,
+	          avgRowHeight = _state5.avgRowHeight;
 	      var scrollTop = this.state.scrollTop;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
@@ -445,19 +427,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: '_scrollToIndex',
 	    value: function _scrollToIndex(index, callback) {
-	      var _this4 = this;
+	      var _this3 = this;
 
-	      var _state9 = this.state,
-	          winStart = _state9.winStart,
-	          winSize = _state9.winSize,
-	          avgRowHeight = _state9.avgRowHeight;
-
-	      //if (index >= winStart && index < winStart + winSize) {
-	      //  this.content.childNodes[index - winStart].scrollIntoView();
-	      //  if (callback) callback();
-	      //  return;
-	      //}
-
+	      var _state6 = this.state,
+	          winStart = _state6.winStart,
+	          winSize = _state6.winSize,
+	          avgRowHeight = _state6.avgRowHeight;
 	      var items = this.props.items;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
@@ -465,14 +440,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var scrollTop = newWinStart * avgRowHeight;
 
 	      this.setState({ winStart: newWinStart, scrollTop: scrollTop }, function () {
-	        _this4.content.childNodes[index - newWinStart].scrollIntoView();
+	        _this3.content.childNodes[index - newWinStart + 1].scrollIntoView();
 	        if (callback) callback();
 	      });
 	    }
 	  }, {
 	    key: 'scrollToIndex',
 	    value: function scrollToIndex(index, callback) {
-	      var _this5 = this;
+	      var _this4 = this;
 
 	      if (this.state.avgRowHeight === 1) {
 	        // The average row height is still the initial value, which means that we
@@ -480,7 +455,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // scroll to the right position. So we need to delay the scroll logic
 	        // until after the list has had a chance to sample the row heights.
 	        this.setState({}, function () {
-	          _this5._scrollToIndex(index, callback);
+	          _this4._scrollToIndex(index, callback);
 	        });
 	      } else {
 	        this._scrollToIndex(index, callback);
@@ -514,9 +489,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'itemsMutated',
 	    value: function itemsMutated(callback) {
 	      var items = this.props.items;
-	      var _state10 = this.state,
-	          winStart = _state10.winStart,
-	          winSize = _state10.winSize;
+	      var _state7 = this.state,
+	          winStart = _state7.winStart,
+	          winSize = _state7.winSize;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
 
@@ -531,17 +506,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'render',
 	    value: function render() {
-	      var _this6 = this;
+	      var _this5 = this;
 
 	      var _props2 = this.props,
 	          items = _props2.items,
 	          getItem = _props2.getItem,
 	          getItemKey = _props2.getItemKey,
 	          scrollbarOffset = _props2.scrollbarOffset;
-	      var _state11 = this.state,
-	          winStart = _state11.winStart,
-	          winSize = _state11.winSize,
-	          avgRowHeight = _state11.avgRowHeight;
+	      var _state8 = this.state,
+	          winStart = _state8.winStart,
+	          winSize = _state8.winSize,
+	          avgRowHeight = _state8.avgRowHeight;
 
 	      var winEnd = Math.min(items.length - 1, winStart + winSize - 1);
 	      var paddingTop = winStart * avgRowHeight;
@@ -556,8 +531,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        overflowX: scrollbarOffset ? 'hidden' : undefined
 	      }, this.props.style);
 	      var contentStyle = {
-	        paddingTop: paddingTop,
-	        paddingBottom: paddingBottom,
 	        marginRight: -scrollbarOffset
 	      };
 	      var itemView = _react2.default.Children.only(this.props.children);
@@ -578,7 +551,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        'div',
 	        {
 	          ref: function ref(node) {
-	            _this6.node = node;
+	            _this5.node = node;
 	          },
 	          className: 'VirtualList',
 	          tabIndex: '-1',
@@ -588,11 +561,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	          'div',
 	          {
 	            ref: function ref(content) {
-	              _this6.content = content;
+	              _this5.content = content;
 	            },
 	            className: 'VirtualList-content',
-	            style: contentStyle },
-	          itemNodes
+	            style: contentStyle
+	          },
+	          _react2.default.createElement('div', { className: 'VirtualList-preBuf', style: { height: paddingTop } }),
+	          itemNodes,
+	          _react2.default.createElement('div', { className: 'VirtualList-postBuf', style: { height: paddingBottom } })
 	        )
 	      );
 	    }
