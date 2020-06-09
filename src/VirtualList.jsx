@@ -57,8 +57,6 @@ class VirtualList extends React.Component {
       winSize: 10,
       viewportHeight: 1,
       avgRowHeight: 1,
-      scrollTop: 0,
-      pendingScrollAdjustment: false,
     };
 
     this.animationLoop = this.animationLoop.bind(this);
@@ -79,21 +77,13 @@ class VirtualList extends React.Component {
 
   // Internal: After the component is updated we do the following:
   //
-  // 1. Invoke the `onFirstVisibleItemChange` callback if the first visible item has changed since
-  //    the last update.
-  // 2. Re-sample row heights if we have fewer items than the display window size.
-  // 3. Sync the components `scrollTop` state property with the node's `scrollTop` property. This is
-  //    necessary to keep scrolling smooth as we add or remove rows whose heights differ from the
-  //    average row height.
+  // 1. Re-sample row heights if we have fewer items than the display window size.
   componentDidUpdate() {
     const node = this.node;
-    const {childNodes} = this.content;
+    const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
     const {winSize} = this.state;
 
-    this.notifyFirstVisibleItemIfNecessary();
-    this.notifyLastVisibleItemIfNecessary();
-
-    if (childNodes.length - 2 < winSize) {
+    if (itemNodes.length < winSize) {
       this.sampleRowHeights();
     }
   }
@@ -116,13 +106,10 @@ class VirtualList extends React.Component {
       this.handleResize();
     }
 
-    if (node.scrollTop !== scrollTop) {
-      if (this.state.pendingScrollAdjustment) {
-        this.setState({scrollTop: node.scrollTop, pendingScrollAdjustment: false});
-      } else {
-        this.scroll(node.scrollTop - scrollTop);
-      }
-    }
+    this.handleScroll(() => {
+      this.notifyFirstVisibleItemIfNecessary();
+      this.notifyLastVisibleItemIfNecessary();
+    });
 
     this._raf = requestAnimationFrame(this.animationLoop);
   }
@@ -146,14 +133,14 @@ class VirtualList extends React.Component {
 
   sampleRowHeights() {
     const node = this.node;
-    const childNodes = this.content.childNodes;
+    const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 
-    if (childNodes.length) {
+    if (itemNodes.length) {
       let totalHeight = 0;
-      for (let i = 1; i < childNodes.length - 1; i++) {
-        totalHeight += childNodes[i].offsetHeight;
+      for (let i = 0; i < itemNodes.length; i++) {
+        totalHeight += itemNodes[i].offsetHeight;
       }
-      const avgRowHeight = Math.round(totalHeight / childNodes.length - 2);
+      const avgRowHeight = Math.round(totalHeight / itemNodes.length);
       const winSize =
         Math.ceil(node.clientHeight / avgRowHeight) + this.props.buffer;
       if (
@@ -192,14 +179,14 @@ class VirtualList extends React.Component {
   }
 
   findFirstVisibleItemIndex() {
-    const childNodes = this.content.childNodes;
+    const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
     const {items} = this.props;
     const {scrollTop} = this.node;
     const {winStart} = this.state;
 
-    for (let i = 1; i < childNodes.length - 1; i++) {
-      if (childNodes[i].offsetTop + childNodes[i].offsetHeight >= scrollTop) {
-        return winStart + i - 1;
+    for (let i = 0; i < itemNodes.length; i++) {
+      if (itemNodes[i].offsetTop + itemNodes[i].offsetHeight >= scrollTop) {
+        return winStart + i;
       }
     }
 
@@ -207,99 +194,70 @@ class VirtualList extends React.Component {
   }
 
   findLastVisibleItemIndex() {
-    const childNodes = this.content.childNodes;
+    const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
     const {items} = this.props;
     const {scrollTop} = this.node;
     const {winStart, viewportHeight} = this.state;
 
-    for (let i = childNodes.length - 2; i >= 1; i--) {
-      if (childNodes[i].offsetTop < scrollTop + viewportHeight) {
-        return winStart + i - 1;
+    for (let i = itemNodes.length - 1; i >= 0; i--) {
+      if (itemNodes[i].offsetTop < scrollTop + viewportHeight) {
+        return winStart + i;
       }
     }
 
     return undefined;
   }
 
-  handleDownwardScroll(delta, callback) {
-    const childNodes = this.content.childNodes;
-    const lastChild = childNodes[childNodes.length - 2];
+  handleScroll(callback) {
     const {items} = this.props;
-    const {winSize, winStart, avgRowHeight} = this.state;
-    const maxWinStart = Math.max(0, items.length - winSize);
+    const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
+    const firstItemNode = itemNodes[0];
+    const lastItemNode = itemNodes[itemNodes.length - 1];
     const {scrollTop} = this.node;
+    const {winSize, winStart, avgRowHeight, viewportHeight} = this.state;
+    const maxWinStart = Math.max(0, items.length - winSize);
     let newWinStart = winStart;
 
-    for (let i = 1; i < childNodes.length - 1; i++) {
-      if (
-        newWinStart < maxWinStart &&
-        childNodes[i].offsetTop + childNodes[i].offsetHeight < scrollTop
-      ) {
-        newWinStart++;
-      } else {
-        break;
+    if (
+      firstItemNode && lastItemNode &&
+      (firstItemNode.offsetTop > scrollTop + viewportHeight ||
+      lastItemNode.offsetTop + lastItemNode.offsetHeight < scrollTop)
+    ) {
+      // window is completely out of viewport, so re-compute it from scratch
+      newWinStart = Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight));
+    } else if (firstItemNode && firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop) {
+      // first item is visible, so shift window upwards
+      for (let i = itemNodes.length - 1; i > 0; i--) {
+        if (
+          newWinStart > 0 &&
+          itemNodes[i].offsetTop > scrollTop + viewportHeight &&
+          itemNodes[i-1].offsetTop > scrollTop + viewportHeight
+        ) {
+          newWinStart--;
+        } else {
+          break;
+        }
+      }
+    } else if (lastItemNode && lastItemNode.offsetTop < scrollTop + viewportHeight) {
+      // last item is visible, so shift window downwards
+      for (let i = 0; i < itemNodes.length - 1; i++) {
+        if (
+          newWinStart < maxWinStart &&
+          itemNodes[i].offsetTop + itemNodes[i].offsetHeight < scrollTop &&
+          itemNodes[i+1].offsetTop + itemNodes[i+1].offsetHeight < scrollTop
+        ) {
+          newWinStart++;
+        } else {
+          break;
+        }
       }
     }
 
-    this.setState({
-      winStart: newWinStart,
-      scrollTop,
-      pendingScrollAdjustment: winStart !== newWinStart,
-    }, callback);
-  }
-
-  handleUpwardScroll(delta, callback) {
-    const node = this.node;
-    const childNodes = this.content.childNodes;
-    const {scrollTop} = this.node;
-    const {winStart, avgRowHeight} = this.state;
-    let newWinStart = winStart;
-
-    for (let i = childNodes.length - 2; i >= 1; i--) {
-      if (
-        newWinStart > 0 &&
-        childNodes[i].offsetTop - scrollTop > node.offsetHeight
-      ) {
-        newWinStart--;
-      } else {
-        break;
-      }
+    if (newWinStart !== winStart) {
+      this.setState({winStart: newWinStart}, callback);
+    } else if (callback) {
+      callback();
     }
-
-    this.setState({
-      winStart: newWinStart,
-      scrollTop,
-      pendingScrollAdjustment: winStart !== newWinStart,
-    }, callback);
-  }
-
-  handleLongScroll(delta, callback) {
-    const {items} = this.props;
-    const {winSize, avgRowHeight} = this.state;
-    let {scrollTop} = this.state;
-    const maxWinStart = Math.max(0, items.length - winSize);
-    scrollTop += delta;
-    this.setState(
-      {
-        winStart: Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight)),
-        scrollTop,
-      },
-      callback,
-    );
-  }
-
-  scroll(delta, callback) {
-    const {viewportHeight} = this.state;
-
-    if (Math.abs(delta) > viewportHeight) {
-      this.handleLongScroll(delta, callback);
-    } else if (delta > 0) {
-      this.handleDownwardScroll(delta, callback);
-    } else if (delta < 0) {
-      this.handleUpwardScroll(delta, callback);
-    }
-
-    return this;
   }
 
   _scrollToIndex(index, callback) {
@@ -420,9 +378,9 @@ class VirtualList extends React.Component {
           className="VirtualList-content"
           style={contentStyle}
         >
-          <div className="VirtualList-preBuf" style={{height: paddingTop}} />
+          <div className="VirtualList-buffer" style={{height: paddingTop}} />
           {itemNodes}
-          <div className="VirtualList-postBuf" style={{height: paddingBottom}} />
+          <div className="VirtualList-buffer" style={{height: paddingBottom}} />
         </div>
       </div>
     );
@@ -465,7 +423,7 @@ VirtualList.propTypes = {
 VirtualList.defaultProps = {
   getItem: defaultGetItem,
   getItemKey: defaultGetItemKey,
-  buffer: 4,
+  buffer: 8,
   scrollbarOffset: 0,
 };
 
