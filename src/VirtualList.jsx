@@ -209,7 +209,7 @@ class VirtualList extends React.Component {
   }
 
   handleScroll(callback) {
-    const {items} = this.props;
+    const {items, buffer} = this.props;
     const itemNodes = Array.from(this.content.childNodes).slice(1, -1);
     const firstItemNode = itemNodes[0];
     const lastItemNode = itemNodes[itemNodes.length - 1];
@@ -227,11 +227,10 @@ class VirtualList extends React.Component {
       newWinStart = Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight));
     } else if (firstItemNode && firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop) {
       // first item is visible, so shift window upwards
-      for (let i = itemNodes.length - 1; i > 0; i--) {
+      for (let i = 0; i < Math.ceil(buffer / 2); i++) {
         if (
           newWinStart > 0 &&
-          itemNodes[i].offsetTop > scrollTop + viewportHeight &&
-          itemNodes[i-1].offsetTop > scrollTop + viewportHeight
+          itemNodes[itemNodes.length - i - 1].offsetTop > scrollTop + viewportHeight
         ) {
           newWinStart--;
         } else {
@@ -240,11 +239,10 @@ class VirtualList extends React.Component {
       }
     } else if (lastItemNode && lastItemNode.offsetTop < scrollTop + viewportHeight) {
       // last item is visible, so shift window downwards
-      for (let i = 0; i < itemNodes.length - 1; i++) {
+      for (let i = 0; i < Math.ceil(buffer / 2); i++) {
         if (
           newWinStart < maxWinStart &&
-          itemNodes[i].offsetTop + itemNodes[i].offsetHeight < scrollTop &&
-          itemNodes[i+1].offsetTop + itemNodes[i+1].offsetHeight < scrollTop
+          itemNodes[i].offsetTop + itemNodes[i].offsetHeight < scrollTop
         ) {
           newWinStart++;
         } else {

@@ -328,7 +328,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'handleScroll',
 	    value: function handleScroll(callback) {
-	      var items = this.props.items;
+	      var _props2 = this.props,
+	          items = _props2.items,
+	          buffer = _props2.buffer;
 
 	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 	      var firstItemNode = itemNodes[0];
@@ -348,8 +350,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        newWinStart = Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight));
 	      } else if (firstItemNode && firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop) {
 	        // first item is visible, so shift window upwards
-	        for (var i = itemNodes.length - 1; i > 0; i--) {
-	          if (newWinStart > 0 && itemNodes[i].offsetTop > scrollTop + viewportHeight && itemNodes[i - 1].offsetTop > scrollTop + viewportHeight) {
+	        for (var i = 0; i < Math.ceil(buffer / 2); i++) {
+	          if (newWinStart > 0 && itemNodes[itemNodes.length - i - 1].offsetTop > scrollTop + viewportHeight) {
 	            newWinStart--;
 	          } else {
 	            break;
@@ -357,8 +359,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      } else if (lastItemNode && lastItemNode.offsetTop < scrollTop + viewportHeight) {
 	        // last item is visible, so shift window downwards
-	        for (var _i = 0; _i < itemNodes.length - 1; _i++) {
-	          if (newWinStart < maxWinStart && itemNodes[_i].offsetTop + itemNodes[_i].offsetHeight < scrollTop && itemNodes[_i + 1].offsetTop + itemNodes[_i + 1].offsetHeight < scrollTop) {
+	        for (var _i = 0; _i < Math.ceil(buffer / 2); _i++) {
+	          if (newWinStart < maxWinStart && itemNodes[_i].offsetTop + itemNodes[_i].offsetHeight < scrollTop) {
 	            newWinStart++;
 	          } else {
 	            break;
@@ -456,11 +458,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    value: function render() {
 	      var _this6 = this;
 
-	      var _props2 = this.props,
-	          items = _props2.items,
-	          getItem = _props2.getItem,
-	          getItemKey = _props2.getItemKey,
-	          scrollbarOffset = _props2.scrollbarOffset;
+	      var _props3 = this.props,
+	          items = _props3.items,
+	          getItem = _props3.getItem,
+	          getItemKey = _props3.getItemKey,
+	          scrollbarOffset = _props3.scrollbarOffset;
 	      var _state6 = this.state,
 	          winStart = _state6.winStart,
 	          winSize = _state6.winSize,

@@ -175,15 +175,16 @@ describe('VirtualList', function() {
       });
 
       it('recalculates the window start based on the number of items scrolled out of view', function() {
+        // buffer is 4
         // winSize is 11
         // 5 items at 40px each take up the viewport
-        // 6 items are out of view after the scroll, so window will slide up by 5
-        expect(this.list.state.winStart).toBe(15);
+        // 6 items are out of view after the scroll, so window will slide up by 2 (half the buffer)
+        expect(this.list.state.winStart).toBe(18);
       });
 
       it('sets the height of the top buffer node to the average row height times the number of non-rendered items', function() {
-        // 15 items not rendered times 30px avg height
-        expect(this.contentNode.childNodes[0].style.height).toBe('450px');
+        // 18 items not rendered times 30px avg height
+        expect(this.contentNode.childNodes[0].style.height).toBe('540px');
       });
     });
   });
