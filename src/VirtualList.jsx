@@ -185,7 +185,7 @@ class VirtualList extends React.Component {
     const {winStart} = this.state;
 
     for (let i = 0; i < itemNodes.length; i++) {
-      if (itemNodes[i].offsetTop + itemNodes[i].offsetHeight >= scrollTop) {
+      if (itemNodes[i].offsetTop + itemNodes[i].offsetHeight > scrollTop) {
         return winStart + i;
       }
     }
