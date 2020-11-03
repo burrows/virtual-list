@@ -64,6 +64,7 @@ describe('VirtualList', function() {
     this.setupList = props => {
       ReactDOM.render(
         <Container
+          buffer={4}
           items={this.items}
           ref={el => {
             this.container = el;
@@ -101,7 +102,7 @@ describe('VirtualList', function() {
     });
 
     it('calculates the window size based on the viewportHeight and average row height', function() {
-      expect(this.list.state.winSize).toBe(11);
+      expect(this.list.state.winSize).toBe(7 + this.list.props.buffer);
     });
   });
 
@@ -115,12 +116,14 @@ describe('VirtualList', function() {
       expect(this.node.style.overflowY).toBe('auto');
     });
 
-    it('renders a content node with a padding-top of 0', function() {
-      expect(this.contentNode.style.paddingTop).toBe('0px');
+    it('renders a content node two buffer child nodes', function() {
+      expect(this.contentNode.childNodes[0].className).toBe('VirtualList-buffer');
+      expect(this.contentNode.childNodes[this.contentNode.childNodes.length - 1].className).toBe('VirtualList-buffer');
     });
 
-    it('sets the padding-bottom of the content node to the number of items not rendered times the average item row height', function() {
-      expect(this.contentNode.style.paddingBottom).toBe('2670px');
+    it('sets the height of the bottom buffer node to the number of items not rendered times the average item row height', function() {
+      const buf = this.contentNode.childNodes[this.contentNode.childNodes.length - 1];
+      expect(buf.style.height).toBe('2670px');
     });
 
     it('renders the number of item rows as indicated by the winSize state prop', function() {
@@ -150,53 +153,46 @@ describe('VirtualList', function() {
 
     describe('on a short downward scroll', function() {
       beforeEach(function(done) {
-        this.list.scroll(41, done);
+        this.node.scrollTop += 101;
+        requestAnimationFrame(done);
       });
 
-      it('recalculates the window start based on the number of items scrolled out of view', function() {
-        expect(this.list.state.winStart).toBe(1);
+      it('recalculates the window start when the last item becomes visible', function() {
+        expect(this.list.state.winStart).toBe(2);
       });
 
-      it('sets the padding-top of the content node to the average row height times the number of non-rendered items', function() {
-        expect(this.contentNode.style.paddingTop).toBe('30px');
-      });
-
-      it('re-adjusts the scrollTop to account for the difference in the average row height and the height of the item removed', function() {
-        expect(this.list.state.scrollTop).toBe(31);
+      it('sets the height of the top buffer node to the average row height times the number of non-rendered items', function() {
+        expect(this.contentNode.childNodes[0].style.height).toBe('60px');
       });
     });
 
     describe('on a short upward scroll', function() {
       beforeEach(function(done) {
         this.list.scrollToIndex(20, () => {
-          this.list.scroll(-1, done);
+          this.node.scrollTop -= 1;
+          requestAnimationFrame(done);
         });
       });
 
       it('recalculates the window start based on the number of items scrolled out of view', function() {
+        // buffer is 4
         // winSize is 11
         // 5 items at 40px each take up the viewport
-        // 6 items are out of view after the scroll
-        expect(this.list.state.winStart).toBe(14);
+        // 6 items are out of view after the scroll, so window will slide up by 2 (half the buffer)
+        expect(this.list.state.winStart).toBe(18);
       });
 
-      it('sets the padding-top of the content node to the average row height times the number of non-rendered items', function() {
-        // 14 items not rendered times 30px avg height
-        expect(this.contentNode.style.paddingTop).toBe('420px');
-      });
-
-      it('re-adjusts the scrollTop to account for the difference in the average row height and the height of the newly rendered items at the beginning of the window', function() {
-        // scrollTop starts at 600px (20 items not rendered * 30px avg height)
-        // 6 items at 40px each of height are rendered at the beginning
-        // 600px - 1px scroll + (6 * 10px difference)
-        expect(this.list.state.scrollTop).toBe(659);
+      it('sets the height of the top buffer node to the average row height times the number of non-rendered items', function() {
+        // 18 items not rendered times 30px avg height
+        expect(this.contentNode.childNodes[0].style.height).toBe('540px');
       });
     });
   });
 
   describe('on a downward scroll past the end of the list', function() {
     beforeEach(function(done) {
-      this.list.scroll(20000000, done);
+      this.node.scrollTop += 20000000;
+      requestAnimationFrame(done);
     });
 
     it('does not adjust the window past the end of the list', function() {
@@ -206,7 +202,8 @@ describe('VirtualList', function() {
 
   describe('on an upward scroll past the beginning of the list', function() {
     beforeEach(function(done) {
-      this.list.scroll(-50, done);
+      this.node.scrollTop -= 50;
+      requestAnimationFrame(done);
     });
 
     it('does not adjust the window past the beginning of the list', function() {
@@ -216,30 +213,29 @@ describe('VirtualList', function() {
 
   describe('on a long scroll', function() {
     beforeEach(function(done) {
-      this.list.scroll(1201, done);
+      this.node.scrollTop += 1201;
+      requestAnimationFrame(done);
     });
 
     it('sets the window start to the item nearest the scroll postion based on average row height', function() {
       expect(this.list.state.winStart).toBe(40);
     });
 
-    it('sets the padding-top of the content node to the average row height times the number of non-rendered items', function() {
+    it('sets the height of the top buffer node to the average row height times the number of non-rendered items', function() {
       // 40 items not rendered times 30px avg height
-      expect(this.contentNode.style.paddingTop).toBe('1200px');
-    });
-
-    it('sets the scrollTop', function() {
-      expect(this.list.state.scrollTop).toBe(1201);
+      expect(this.contentNode.childNodes[0].style.height).toBe('1200px');
     });
   });
 
   describe('onFirstVisibleItemChange callback', function() {
-    it('gets invoked after a scroll changes which item is the first visibile', function(done) {
+    it('gets invoked after a scroll changes which item is the first visible', function(done) {
       expect(this.onFirstVisibleItemChange.calls.count()).toBe(1);
 
-      this.list.scroll(39, () => {
+      this.node.scrollTop += 39;
+      requestAnimationFrame(() => {
         expect(this.onFirstVisibleItemChange.calls.count()).toBe(1);
-        this.list.scroll(2, () => {
+        this.node.scrollTop += 2;
+        requestAnimationFrame(() => {
           expect(this.onFirstVisibleItemChange.calls.count()).toBe(2);
           expect(this.onFirstVisibleItemChange).toHaveBeenCalledWith(
             this.items[1],
@@ -252,13 +248,19 @@ describe('VirtualList', function() {
   });
 
   describe('onLastVisibleItemChange callback', function() {
-    it('gets invoked after a scroll changes which item is the last visibile', function(done) {
-      expect(this.onLastVisibleItemChange.calls.count()).toBe(1);
+    beforeEach(function(done) {
+      requestAnimationFrame(done);
+    });
 
-      this.list.scroll(19, () => {
-        expect(this.onLastVisibleItemChange.calls.count()).toBe(1);
-        this.list.scroll(2, () => {
-          expect(this.onLastVisibleItemChange.calls.count()).toBe(2);
+    it('gets invoked after a scroll changes which item is the last visible', function(done) {
+      expect(this.onLastVisibleItemChange.calls.count()).toBe(2);
+
+      this.node.scrollTop += 19;
+      requestAnimationFrame(() => {
+        expect(this.onLastVisibleItemChange.calls.count()).toBe(2);
+        this.node.scrollTop += 2;
+        requestAnimationFrame(() => {
+          expect(this.onLastVisibleItemChange.calls.count()).toBe(3);
           expect(this.onLastVisibleItemChange).toHaveBeenCalledWith(
             this.items[7],
             7,

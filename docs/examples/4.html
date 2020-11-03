@@ -1,0 +1,83 @@
+<!doctype html>
+<html class="no-js" lang="">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>VirtualList Example</title>
+    <style>
+    .container {
+      position: absolute;
+      top: 50px;
+      right: 50px;
+      bottom: 50px;
+      left: 50px;
+      border: 1px solid #eee;
+      overflow: hidden;
+    }
+
+    .ItemView {
+      border-bottom: 1px solid #eee;
+      padding: 10px;
+    }
+
+    p {
+      margin: 0;
+    }
+    </style>
+  </head>
+  <body>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" data-presets="es2015,stage-2"></script>
+    <script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/prop-types@15.6/prop-types.js"></script>
+    <script type="text/javascript">
+    window.react = window.React;
+    window['prop-types'] = window.PropTypes;
+    </script>
+    <script src="../VirtualList.js"></script>
+    <div id="example"></div>
+    <script type="text/babel">
+    (function() {
+      const lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ante orci, tincidunt at malesuada sed, mollis vel nunc. Duis sed dolor a sem varius egestas vitae id nulla. Donec venenatis mollis tellus at sollicitudin. Vestibulum in enim dictum, tincidunt diam ut, posuere metus. Curabitur vel urna nisl. Etiam nisi orci, tincidunt et dignissim ac, auctor quis lorem. Curabitur condimentum nulla vel iaculis feugiat. Donec aliquam fermentum neque, sit amet venenatis est molestie non. Morbi pulvinar risus turpis, id pellentesque nibh malesuada ac. Vivamus lacinia tincidunt nibh sed porta. Donec porttitor mauris eu venenatis laoreet. Fusce augue orci, vehicula ut venenatis sit amet, laoreet vitae augue. In hac habitasse platea dictumst. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. In ornare vitae dui a accumsan. Nam tincidunt volutpat sem, quis venenatis nulla fermentum eget. Curabitur dictum commodo massa, ut facilisis lacus pharetra sed.".split(/\s+/);
+      const items = [];
+
+      for (let i = 0; i < 1000; i++) {
+        items.push({id: i, name: 'item: ' + i});
+      }
+
+      const ItemView = ({ item }) => (
+        <div className="ItemView" style={{height: 50}}>
+          <p>{item.name}</p>
+        </div>
+      );
+      class App extends React.Component {
+        state = {
+          first: null
+        }
+
+        render() {
+          const { first } = this.state;
+          return (
+            <div>
+              <div>
+                First visible index: {first && first.id}
+              </div>
+              <div className="container">
+                <VirtualList
+                  items={items}
+                  getItemKey={(item, index) => item.id}
+                  onFirstVisibleItemChange={item => this.setState({ first: item })}
+                >
+                  <ItemView />
+                </VirtualList>
+              </div>
+            </div>
+          );
+        }
+      }
+      ReactDOM.render(<App ref={app => window.app = app} />, document.querySelector('#example'));
+      window.items = items;
+    }());
+    </script>
+  </body>
+</html>

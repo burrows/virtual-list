@@ -151,8 +151,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      winStart: 0,
 	      winSize: 10,
 	      viewportHeight: 1,
-	      avgRowHeight: 1,
-	      scrollTop: 0
+	      avgRowHeight: 1
 	    };
 
 	    _this2.animationLoop = _this2.animationLoop.bind(_this2);
@@ -178,32 +177,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    // Internal: After the component is updated we do the following:
 	    //
-	    // 1. Invoke the `onFirstVisibleItemChange` callback if the first visible item has changed since
-	    //    the last update.
-	    // 2. Re-sample row heights if we have fewer items than the display window size.
-	    // 3. Sync the components `scrollTop` state property with the node's `scrollTop` property. This is
-	    //    necessary to keep scrolling smooth as we add or remove rows whose heights differ from the
-	    //    average row height.
+	    // 1. Re-sample row heights if we have fewer items than the display window size.
 
 	  }, {
 	    key: 'componentDidUpdate',
 	    value: function componentDidUpdate() {
 	      var node = this.node;
-	      var childNodes = this.content.childNodes;
-	      var _state = this.state,
-	          winSize = _state.winSize,
-	          scrollTop = _state.scrollTop;
+	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
+	      var winSize = this.state.winSize;
 
 
-	      this.notifyFirstVisibleItemIfNecessary();
-	      this.notifyLastVisibleItemIfNecessary();
-
-	      if (childNodes.length < winSize) {
+	      if (itemNodes.length < winSize) {
 	        this.sampleRowHeights();
-	      }
-
-	      if (node.scrollTop !== scrollTop) {
-	        node.scrollTop = scrollTop;
 	      }
 	    }
 	  }, {
@@ -222,19 +207,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'animationLoop',
 	    value: function animationLoop() {
+	      var _this3 = this;
+
 	      var node = this.node;
-	      var _state2 = this.state,
-	          scrollTop = _state2.scrollTop,
-	          viewportHeight = _state2.viewportHeight;
+	      var _state = this.state,
+	          scrollTop = _state.scrollTop,
+	          viewportHeight = _state.viewportHeight;
 
 
 	      if (node.clientHeight !== viewportHeight) {
 	        this.handleResize();
 	      }
 
-	      if (node.scrollTop !== scrollTop) {
-	        this.scroll(node.scrollTop - scrollTop);
-	      }
+	      this.handleScroll(function () {
+	        _this3.notifyFirstVisibleItemIfNecessary();
+	        _this3.notifyLastVisibleItemIfNecessary();
+	      });
 
 	      this._raf = requestAnimationFrame(this.animationLoop);
 	    }
@@ -259,14 +247,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'sampleRowHeights',
 	    value: function sampleRowHeights() {
 	      var node = this.node;
-	      var childNodes = this.content.childNodes;
+	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 
-	      if (childNodes.length) {
+	      if (itemNodes.length) {
 	        var totalHeight = 0;
-	        for (var i = 0; i < childNodes.length; i++) {
-	          totalHeight += childNodes[i].offsetHeight;
+	        for (var i = 0; i < itemNodes.length; i++) {
+	          totalHeight += itemNodes[i].offsetHeight;
 	        }
-	        var avgRowHeight = totalHeight / childNodes.length;
+	        var avgRowHeight = Math.round(totalHeight / itemNodes.length);
 	        var winSize = Math.ceil(node.clientHeight / avgRowHeight) + this.props.buffer;
 	        if (avgRowHeight !== this.state.avgRowHeight || winSize !== this.state.winSize) {
 	          this.setState({ avgRowHeight: avgRowHeight, winSize: winSize });
@@ -304,15 +292,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'findFirstVisibleItemIndex',
 	    value: function findFirstVisibleItemIndex() {
-	      var childNodes = this.content.childNodes;
+	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 	      var items = this.props.items;
-	      var _state3 = this.state,
-	          winStart = _state3.winStart,
-	          scrollTop = _state3.scrollTop;
+	      var scrollTop = this.node.scrollTop;
+	      var winStart = this.state.winStart;
 
 
-	      for (var i = 0; i < childNodes.length; i++) {
-	        if (childNodes[i].offsetTop + childNodes[i].offsetHeight >= scrollTop) {
+	      for (var i = 0; i < itemNodes.length; i++) {
+	        if (itemNodes[i].offsetTop + itemNodes[i].offsetHeight > scrollTop) {
 	          return winStart + i;
 	        }
 	      }
@@ -322,16 +309,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'findLastVisibleItemIndex',
 	    value: function findLastVisibleItemIndex() {
-	      var childNodes = this.content.childNodes;
+	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 	      var items = this.props.items;
-	      var _state4 = this.state,
-	          winStart = _state4.winStart,
-	          scrollTop = _state4.scrollTop,
-	          viewportHeight = _state4.viewportHeight;
+	      var scrollTop = this.node.scrollTop;
+	      var _state2 = this.state,
+	          winStart = _state2.winStart,
+	          viewportHeight = _state2.viewportHeight;
 
 
-	      for (var i = childNodes.length - 1; i >= 0; i--) {
-	        if (childNodes[i].offsetTop < scrollTop + viewportHeight) {
+	      for (var i = itemNodes.length - 1; i >= 0; i--) {
+	        if (itemNodes[i].offsetTop < scrollTop + viewportHeight) {
 	          return winStart + i;
 	        }
 	      }
@@ -339,122 +326,90 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return undefined;
 	    }
 	  }, {
-	    key: 'handleDownwardScroll',
-	    value: function handleDownwardScroll(delta, callback) {
-	      var childNodes = this.content.childNodes;
-	      var items = this.props.items;
-	      var _state5 = this.state,
-	          winSize = _state5.winSize,
-	          avgRowHeight = _state5.avgRowHeight;
+	    key: 'handleScroll',
+	    value: function handleScroll(callback) {
+	      var _props2 = this.props,
+	          items = _props2.items,
+	          buffer = _props2.buffer;
+
+	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
+	      var firstItemNode = itemNodes[0];
+	      var lastItemNode = itemNodes[itemNodes.length - 1];
+	      var scrollTop = this.node.scrollTop;
+	      var _state3 = this.state,
+	          winSize = _state3.winSize,
+	          winStart = _state3.winStart,
+	          avgRowHeight = _state3.avgRowHeight,
+	          viewportHeight = _state3.viewportHeight;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
-	      var _state6 = this.state,
-	          winStart = _state6.winStart,
-	          scrollTop = _state6.scrollTop;
+	      var newWinStart = winStart;
 
-
-	      scrollTop += delta;
-
-	      var startScrollTop = scrollTop;
-
-	      for (var i = 0; i < childNodes.length; i++) {
-	        if (winStart < maxWinStart && childNodes[i].offsetTop + childNodes[i].offsetHeight < startScrollTop) {
-	          winStart++;
-	          scrollTop += avgRowHeight - childNodes[i].offsetHeight;
-	        } else {
-	          break;
+	      if (firstItemNode && lastItemNode && (firstItemNode.offsetTop > scrollTop + viewportHeight || lastItemNode.offsetTop + lastItemNode.offsetHeight < scrollTop)) {
+	        // window is completely out of viewport, so re-compute it from scratch
+	        newWinStart = Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight));
+	      } else if (firstItemNode && firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop) {
+	        // first item is visible, so shift window upwards
+	        for (var i = 0; i < Math.ceil(buffer / 2); i++) {
+	          if (newWinStart > 0 && itemNodes[itemNodes.length - i - 1].offsetTop > scrollTop + viewportHeight) {
+	            newWinStart--;
+	          } else {
+	            break;
+	          }
+	        }
+	      } else if (lastItemNode && lastItemNode.offsetTop < scrollTop + viewportHeight) {
+	        // last item is visible, so shift window downwards
+	        for (var _i = 0; _i < Math.ceil(buffer / 2); _i++) {
+	          if (newWinStart < maxWinStart && itemNodes[_i].offsetTop + itemNodes[_i].offsetHeight < scrollTop) {
+	            newWinStart++;
+	          } else {
+	            break;
+	          }
 	        }
 	      }
 
-	      scrollTop = Math.round(scrollTop);
-
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, callback);
+	      if (newWinStart !== winStart) {
+	        this.setState({ winStart: newWinStart }, callback);
+	      } else if (callback) {
+	        callback();
+	      }
 	    }
 	  }, {
-	    key: 'handleUpwardScroll',
-	    value: function handleUpwardScroll(delta, callback) {
-	      var _this3 = this;
+	    key: '_scrollToIndex',
+	    value: function _scrollToIndex(index, callback) {
+	      var _this4 = this;
 
-	      var node = this.node;
-	      var childNodes = this.content.childNodes;
-	      var _state7 = this.state,
-	          winStart = _state7.winStart,
-	          scrollTop = _state7.scrollTop,
-	          avgRowHeight = _state7.avgRowHeight;
+	      var _state4 = this.state,
+	          winStart = _state4.winStart,
+	          winSize = _state4.winSize,
+	          avgRowHeight = _state4.avgRowHeight;
+	      var items = this.props.items;
 
-	      var n = 0;
+	      var maxWinStart = Math.max(0, items.length - winSize);
+	      var newWinStart = Math.min(maxWinStart, index);
+	      var scrollTop = newWinStart * avgRowHeight;
 
-	      scrollTop += delta;
-
-	      for (var i = childNodes.length - 1; i >= 0; i--) {
-	        if (winStart > 0 && childNodes[i].offsetTop - scrollTop > node.offsetHeight) {
-	          winStart--;
-	          n++;
-	        } else {
-	          break;
-	        }
-	      }
-
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, function () {
-	        var childNodes = _this3.content.childNodes;
-	        var avgRowHeight = _this3.state.avgRowHeight;
-	        var scrollTop = _this3.state.scrollTop;
-
-
-	        for (var _i = 0; _i < n; _i++) {
-	          scrollTop -= avgRowHeight - childNodes[_i].offsetHeight;
-	        }
-
-	        scrollTop = Math.round(scrollTop);
-
-	        _this3.setState({ scrollTop: scrollTop }, callback);
+	      this.setState({ winStart: newWinStart, scrollTop: scrollTop }, function () {
+	        _this4.content.childNodes[index - newWinStart + 1].scrollIntoView();
+	        if (callback) callback();
 	      });
-	    }
-	  }, {
-	    key: 'handleLongScroll',
-	    value: function handleLongScroll(delta, callback) {
-	      var items = this.props.items;
-	      var _state8 = this.state,
-	          winSize = _state8.winSize,
-	          avgRowHeight = _state8.avgRowHeight;
-	      var scrollTop = this.state.scrollTop;
-
-	      var maxWinStart = Math.max(0, items.length - winSize);
-	      scrollTop += delta;
-	      this.setState({
-	        winStart: Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight)),
-	        scrollTop: scrollTop
-	      }, callback);
-	    }
-	  }, {
-	    key: 'scroll',
-	    value: function scroll(delta, callback) {
-	      var viewportHeight = this.state.viewportHeight;
-
-
-	      if (Math.abs(delta) > viewportHeight) {
-	        this.handleLongScroll(delta, callback);
-	      } else if (delta > 0) {
-	        this.handleDownwardScroll(delta, callback);
-	      } else if (delta < 0) {
-	        this.handleUpwardScroll(delta, callback);
-	      }
-
-	      return this;
 	    }
 	  }, {
 	    key: 'scrollToIndex',
 	    value: function scrollToIndex(index, callback) {
-	      var items = this.props.items;
-	      var _state9 = this.state,
-	          winSize = _state9.winSize,
-	          avgRowHeight = _state9.avgRowHeight;
+	      var _this5 = this;
 
-	      var maxWinStart = Math.max(0, items.length - winSize);
-	      var winStart = Math.min(maxWinStart, index);
-	      var scrollTop = winStart * avgRowHeight;
-
-	      this.setState({ winStart: winStart, scrollTop: scrollTop }, callback);
+	      if (this.state.avgRowHeight === 1) {
+	        // The average row height is still the initial value, which means that we
+	        // haven't sampled the row heights yet, which we need in order to properly
+	        // scroll to the right position. So we need to delay the scroll logic
+	        // until after the list has had a chance to sample the row heights.
+	        this.setState({}, function () {
+	          _this5._scrollToIndex(index, callback);
+	        });
+	      } else {
+	        this._scrollToIndex(index, callback);
+	      }
 	    }
 	  }, {
 	    key: 'scrollToItem',
@@ -484,9 +439,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'itemsMutated',
 	    value: function itemsMutated(callback) {
 	      var items = this.props.items;
-	      var _state10 = this.state,
-	          winStart = _state10.winStart,
-	          winSize = _state10.winSize;
+	      var _state5 = this.state,
+	          winStart = _state5.winStart,
+	          winSize = _state5.winSize;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
 
@@ -499,32 +454,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this;
 	    }
 	  }, {
-	    key: 'handleScroll',
-	    value: function handleScroll() {
-	      var node = this.node;
-	      var scrollTop = this.state.scrollTop;
-
-
-	      if (node.scrollTop !== scrollTop) {
-	        this.scroll(node.scrollTop - scrollTop);
-	      }
-
-	      this._handleScrollRAF = requestAnimationFrame(this.handleScroll);
-	    }
-	  }, {
 	    key: 'render',
 	    value: function render() {
-	      var _this4 = this;
+	      var _this6 = this;
 
-	      var _props2 = this.props,
-	          items = _props2.items,
-	          getItem = _props2.getItem,
-	          getItemKey = _props2.getItemKey,
-	          scrollbarOffset = _props2.scrollbarOffset;
-	      var _state11 = this.state,
-	          winStart = _state11.winStart,
-	          winSize = _state11.winSize,
-	          avgRowHeight = _state11.avgRowHeight;
+	      var _props3 = this.props,
+	          items = _props3.items,
+	          getItem = _props3.getItem,
+	          getItemKey = _props3.getItemKey,
+	          scrollbarOffset = _props3.scrollbarOffset;
+	      var _state6 = this.state,
+	          winStart = _state6.winStart,
+	          winSize = _state6.winSize,
+	          avgRowHeight = _state6.avgRowHeight;
 
 	      var winEnd = Math.min(items.length - 1, winStart + winSize - 1);
 	      var paddingTop = winStart * avgRowHeight;
@@ -539,8 +481,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        overflowX: scrollbarOffset ? 'hidden' : undefined
 	      }, this.props.style);
 	      var contentStyle = {
-	        paddingTop: paddingTop,
-	        paddingBottom: paddingBottom,
 	        marginRight: -scrollbarOffset
 	      };
 	      var itemView = _react2.default.Children.only(this.props.children);
@@ -561,7 +501,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        'div',
 	        {
 	          ref: function ref(node) {
-	            _this4.node = node;
+	            _this6.node = node;
 	          },
 	          className: 'VirtualList',
 	          tabIndex: '-1',
@@ -571,11 +511,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	          'div',
 	          {
 	            ref: function ref(content) {
-	              _this4.content = content;
+	              _this6.content = content;
 	            },
 	            className: 'VirtualList-content',
-	            style: contentStyle },
-	          itemNodes
+	            style: contentStyle
+	          },
+	          _react2.default.createElement('div', { className: 'VirtualList-buffer', style: { height: paddingTop } }),
+	          itemNodes,
+	          _react2.default.createElement('div', { className: 'VirtualList-buffer', style: { height: paddingBottom } })
 	        )
 	      );
 	    }
@@ -620,7 +563,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	VirtualList.defaultProps = {
 	  getItem: defaultGetItem,
 	  getItemKey: defaultGetItemKey,
-	  buffer: 4,
+	  buffer: 8,
 	  scrollbarOffset: 0
 	};
 
