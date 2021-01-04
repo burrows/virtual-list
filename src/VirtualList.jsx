@@ -59,6 +59,9 @@ class VirtualList extends React.Component {
       avgRowHeight: 1,
     };
 
+    // cache the initial value of `initialItemIndex` since we can't process it right away and it is
+    // possible it could change before we do.
+    this._initialItemIndex = props.initialItemIndex;
     this.animationLoop = this.animationLoop.bind(this);
   }
 
@@ -70,9 +73,16 @@ class VirtualList extends React.Component {
   //    rendered window and item positions.
   // 2. Sample the just rendered row heights to get an average row height to use while handling
   //    scroll events.
+  // 3. Scroll to the item indicated by the `initialItemIndex` prop.
   componentDidMount() {
     this.animationLoop();
     this.sampleRowHeights();
+
+    if (this._initialItemIndex !== 0) {
+      setTimeout(() => {
+        this.scrollToIndex(this._initialItemIndex);
+      });
+    }
   }
 
   // Internal: After the component is updated we do the following:
@@ -100,7 +110,7 @@ class VirtualList extends React.Component {
   //    need to adjust the render window.
   animationLoop() {
     const node = this.node;
-    const {scrollTop, viewportHeight} = this.state;
+    const {viewportHeight} = this.state;
 
     if (node.clientHeight !== viewportHeight) {
       this.handleResize();
@@ -271,9 +281,8 @@ class VirtualList extends React.Component {
     const {items} = this.props;
     const maxWinStart = Math.max(0, items.length - winSize);
     let newWinStart = Math.min(maxWinStart, index);
-    let scrollTop = newWinStart * avgRowHeight;
 
-    this.setState({winStart: newWinStart, scrollTop}, () => {
+    this.setState({winStart: newWinStart}, () => {
       this.content.childNodes[index - newWinStart + 1].scrollIntoView();
       if (callback) callback();
     });
@@ -422,6 +431,9 @@ VirtualList.propTypes = {
 
   // Style object applied to the container.
   style: PropTypes.object,
+
+  // Scroll to the item at this index on the initial render. Defaults to 0.
+  initialItemIndex: PropTypes.number,
 };
 
 VirtualList.defaultProps = {
@@ -429,6 +441,7 @@ VirtualList.defaultProps = {
   getItemKey: defaultGetItemKey,
   buffer: 8,
   scrollbarOffset: 0,
+  initialItemIndex: 0,
 };
 
 module.exports = VirtualList;
