@@ -100,7 +100,7 @@ class VirtualList extends React.Component {
   //    need to adjust the render window.
   animationLoop() {
     const node = this.node;
-    const { scrollTop, viewportHeight } = this.state;
+    const {scrollTop, viewportHeight} = this.state;
 
     if (node.clientHeight !== viewportHeight) {
       this.handleResize();
@@ -109,9 +109,8 @@ class VirtualList extends React.Component {
     this.handleScroll(() => {
       this.notifyFirstVisibleItemIfNecessary();
       this.notifyLastVisibleItemIfNecessary();
+      this._raf = requestAnimationFrame(this.animationLoop);
     });
-
-    this._raf = requestAnimationFrame(this.animationLoop);
   }
 
   // Internal: When the container node has been resized we need to adjust the internal
@@ -219,25 +218,33 @@ class VirtualList extends React.Component {
     let newWinStart = winStart;
 
     if (
-      firstItemNode && lastItemNode &&
+      firstItemNode &&
+      lastItemNode &&
       (firstItemNode.offsetTop > scrollTop + viewportHeight ||
-      lastItemNode.offsetTop + lastItemNode.offsetHeight < scrollTop)
+        lastItemNode.offsetTop + lastItemNode.offsetHeight < scrollTop)
     ) {
       // window is completely out of viewport, so re-compute it from scratch
       newWinStart = Math.min(maxWinStart, Math.floor(scrollTop / avgRowHeight));
-    } else if (firstItemNode && firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop) {
+    } else if (
+      firstItemNode &&
+      firstItemNode.offsetTop + firstItemNode.offsetHeight > scrollTop
+    ) {
       // first item is visible, so shift window upwards
       for (let i = 0; i < Math.ceil(buffer / 2); i++) {
         if (
           newWinStart > 0 &&
-          itemNodes[itemNodes.length - i - 1].offsetTop > scrollTop + viewportHeight
+          itemNodes[itemNodes.length - i - 1].offsetTop >
+            scrollTop + viewportHeight
         ) {
           newWinStart--;
         } else {
           break;
         }
       }
-    } else if (lastItemNode && lastItemNode.offsetTop < scrollTop + viewportHeight) {
+    } else if (
+      lastItemNode &&
+      lastItemNode.offsetTop < scrollTop + viewportHeight
+    ) {
       // last item is visible, so shift window downwards
       for (let i = 0; i < Math.ceil(buffer / 2); i++) {
         if (
@@ -374,8 +381,7 @@ class VirtualList extends React.Component {
             this.content = content;
           }}
           className="VirtualList-content"
-          style={contentStyle}
-        >
+          style={contentStyle}>
           <div className="VirtualList-buffer" style={{height: paddingTop}} />
           {itemNodes}
           <div className="VirtualList-buffer" style={{height: paddingBottom}} />
