@@ -154,6 +154,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      avgRowHeight: 1
 	    };
 
+	    // cache the initial value of `initialItemIndex` since we can't process it right away and it is
+	    // possible it could change before we do.
+	    _this2._initialItemIndex = props.initialItemIndex;
 	    _this2.animationLoop = _this2.animationLoop.bind(_this2);
 	    return _this2;
 	  }
@@ -166,13 +169,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	  //    rendered window and item positions.
 	  // 2. Sample the just rendered row heights to get an average row height to use while handling
 	  //    scroll events.
+	  // 3. Scroll to the item indicated by the `initialItemIndex` prop.
 
 
 	  _createClass(VirtualList, [{
 	    key: 'componentDidMount',
 	    value: function componentDidMount() {
+	      var _this3 = this;
+
 	      this.animationLoop();
 	      this.sampleRowHeights();
+
+	      if (this._initialItemIndex !== 0) {
+	        setTimeout(function () {
+	          _this3.scrollToIndex(_this3._initialItemIndex);
+	        });
+	      }
 	    }
 
 	    // Internal: After the component is updated we do the following:
@@ -207,12 +219,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'animationLoop',
 	    value: function animationLoop() {
-	      var _this3 = this;
+	      var _this4 = this;
 
 	      var node = this.node;
-	      var _state = this.state,
-	          scrollTop = _state.scrollTop,
-	          viewportHeight = _state.viewportHeight;
+	      var viewportHeight = this.state.viewportHeight;
 
 
 	      if (node.clientHeight !== viewportHeight) {
@@ -220,11 +230,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 
 	      this.handleScroll(function () {
-	        _this3.notifyFirstVisibleItemIfNecessary();
-	        _this3.notifyLastVisibleItemIfNecessary();
+	        _this4.notifyFirstVisibleItemIfNecessary();
+	        _this4.notifyLastVisibleItemIfNecessary();
+	        _this4._raf = requestAnimationFrame(_this4.animationLoop);
 	      });
-
-	      this._raf = requestAnimationFrame(this.animationLoop);
 	    }
 
 	    // Internal: When the container node has been resized we need to adjust the internal
@@ -312,9 +321,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var itemNodes = Array.from(this.content.childNodes).slice(1, -1);
 	      var items = this.props.items;
 	      var scrollTop = this.node.scrollTop;
-	      var _state2 = this.state,
-	          winStart = _state2.winStart,
-	          viewportHeight = _state2.viewportHeight;
+	      var _state = this.state,
+	          winStart = _state.winStart,
+	          viewportHeight = _state.viewportHeight;
 
 
 	      for (var i = itemNodes.length - 1; i >= 0; i--) {
@@ -336,11 +345,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var firstItemNode = itemNodes[0];
 	      var lastItemNode = itemNodes[itemNodes.length - 1];
 	      var scrollTop = this.node.scrollTop;
-	      var _state3 = this.state,
-	          winSize = _state3.winSize,
-	          winStart = _state3.winStart,
-	          avgRowHeight = _state3.avgRowHeight,
-	          viewportHeight = _state3.viewportHeight;
+	      var _state2 = this.state,
+	          winSize = _state2.winSize,
+	          winStart = _state2.winStart,
+	          avgRowHeight = _state2.avgRowHeight,
+	          viewportHeight = _state2.viewportHeight;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
 	      var newWinStart = winStart;
@@ -377,27 +386,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: '_scrollToIndex',
 	    value: function _scrollToIndex(index, callback) {
-	      var _this4 = this;
+	      var _this5 = this;
 
-	      var _state4 = this.state,
-	          winStart = _state4.winStart,
-	          winSize = _state4.winSize,
-	          avgRowHeight = _state4.avgRowHeight;
+	      var _state3 = this.state,
+	          winStart = _state3.winStart,
+	          winSize = _state3.winSize,
+	          avgRowHeight = _state3.avgRowHeight;
 	      var items = this.props.items;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
 	      var newWinStart = Math.min(maxWinStart, index);
-	      var scrollTop = newWinStart * avgRowHeight;
 
-	      this.setState({ winStart: newWinStart, scrollTop: scrollTop }, function () {
-	        _this4.content.childNodes[index - newWinStart + 1].scrollIntoView();
+	      this.setState({ winStart: newWinStart }, function () {
+	        _this5.content.childNodes[index - newWinStart + 1].scrollIntoView();
 	        if (callback) callback();
 	      });
 	    }
 	  }, {
 	    key: 'scrollToIndex',
 	    value: function scrollToIndex(index, callback) {
-	      var _this5 = this;
+	      var _this6 = this;
 
 	      if (this.state.avgRowHeight === 1) {
 	        // The average row height is still the initial value, which means that we
@@ -405,7 +413,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // scroll to the right position. So we need to delay the scroll logic
 	        // until after the list has had a chance to sample the row heights.
 	        this.setState({}, function () {
-	          _this5._scrollToIndex(index, callback);
+	          _this6._scrollToIndex(index, callback);
 	        });
 	      } else {
 	        this._scrollToIndex(index, callback);
@@ -439,9 +447,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'itemsMutated',
 	    value: function itemsMutated(callback) {
 	      var items = this.props.items;
-	      var _state5 = this.state,
-	          winStart = _state5.winStart,
-	          winSize = _state5.winSize;
+	      var _state4 = this.state,
+	          winStart = _state4.winStart,
+	          winSize = _state4.winSize;
 
 	      var maxWinStart = Math.max(0, items.length - winSize);
 
@@ -456,17 +464,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'render',
 	    value: function render() {
-	      var _this6 = this;
+	      var _this7 = this;
 
 	      var _props3 = this.props,
 	          items = _props3.items,
 	          getItem = _props3.getItem,
 	          getItemKey = _props3.getItemKey,
 	          scrollbarOffset = _props3.scrollbarOffset;
-	      var _state6 = this.state,
-	          winStart = _state6.winStart,
-	          winSize = _state6.winSize,
-	          avgRowHeight = _state6.avgRowHeight;
+	      var _state5 = this.state,
+	          winStart = _state5.winStart,
+	          winSize = _state5.winSize,
+	          avgRowHeight = _state5.avgRowHeight;
 
 	      var winEnd = Math.min(items.length - 1, winStart + winSize - 1);
 	      var paddingTop = winStart * avgRowHeight;
@@ -501,7 +509,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        'div',
 	        {
 	          ref: function ref(node) {
-	            _this6.node = node;
+	            _this7.node = node;
 	          },
 	          className: 'VirtualList',
 	          tabIndex: '-1',
@@ -511,11 +519,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	          'div',
 	          {
 	            ref: function ref(content) {
-	              _this6.content = content;
+	              _this7.content = content;
 	            },
 	            className: 'VirtualList-content',
-	            style: contentStyle
-	          },
+	            style: contentStyle },
 	          _react2.default.createElement('div', { className: 'VirtualList-buffer', style: { height: paddingTop } }),
 	          itemNodes,
 	          _react2.default.createElement('div', { className: 'VirtualList-buffer', style: { height: paddingBottom } })
@@ -557,14 +564,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	  scrollbarOffset: _propTypes2.default.number,
 
 	  // Style object applied to the container.
-	  style: _propTypes2.default.object
+	  style: _propTypes2.default.object,
+
+	  // Scroll to the item at this index on the initial render. Defaults to 0.
+	  initialItemIndex: _propTypes2.default.number
 	};
 
 	VirtualList.defaultProps = {
 	  getItem: defaultGetItem,
 	  getItemKey: defaultGetItemKey,
 	  buffer: 8,
-	  scrollbarOffset: 0
+	  scrollbarOffset: 0,
+	  initialItemIndex: 0
 	};
 
 	module.exports = VirtualList;
